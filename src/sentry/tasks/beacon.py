@@ -35,7 +35,7 @@ def send_beacon():
     See the documentation for more details.
     """
     from sentry import options
-    from sentry.models import Organization, Project, Team, User
+    from sentry.models import Broadcast, Organization, Project, Team, User
 
     if not settings.SENTRY_BEACON:
         logger.info('Not sending beacon (disabled)')
@@ -81,3 +81,15 @@ def send_beacon():
     data = json.loads(response)
     if 'version' in data:
         options.set('sentry:latest_version', data['version']['stable'])
+    if data.get('notices'):
+        for notice in data['notices']:
+            broadcast, created = Broadcast.objects.get_or_create(
+                title=notice['title'],
+                link=notice.get('link'),
+                defaults={
+                    'message': notice['message'],
+                    'is_active': notice['active'],
+                }
+            )
+            if not notice['active'] and broadcast.is_active:
+                broadcast.update(is_active=False)
